@@ -224,7 +224,3 @@ export default function BuilderPage({ onDeploy }: BuilderPageProps) {
     </div>
   );
 }
-
-function HammerIcon() {
-  return <Hammer className="w-5 h-5 text-amber-400" />;
-}
