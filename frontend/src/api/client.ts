@@ -11,7 +11,13 @@ export interface AgentResponse {
   status: string;
   policy_text: string;
   created_at: string;
-  config: any;
+  config?: any;
+  container_id?: string;
+  sensitivity?: string;
+  trust_level?: number;
+  tools?: any[];
+  purpose?: string;
+  resource_scopes?: Record<string, string[]>;
 }
 
 export interface RunAgentRequest {
@@ -22,27 +28,30 @@ export interface RunAgentRequest {
 export interface AuditRecord {
   id: number;
   agent_id: string;
+  session_id?: string;
   event_type: string;
-  tool_name: string;
-  resource: string;
-  policy_decision: string;
-  policy_reason: string;
-  latency_ms: number;
-  timestamp: string;
+  tool_name?: string;
+  resource?: string;
+  action?: string;
+  policy_decision?: string;
+  policy_reason?: string;
+  input_data?: string;
+  output_data?: string;
+  latency_ms?: number;
+  timestamp?: string;
 }
 
 export interface AuditStats {
-  total: number;
-  allow_count: number;
-  deny_count: number;
-  by_agent: Record<string, number>;
+  total?: number;
+  total_events?: number;
+  allow_count?: number;
+  deny_count?: number;
+  by_agent?: Record<string, any>;
 }
 
-// Dummy client implementation since the backend is assumed to exist at /api.
-// In a real scenario, this would use fetch or axios.
 export const apiClient = {
   createAgent: async (req: CreateAgentRequest): Promise<AgentResponse> => {
-    const res = await fetch('/api/agents', {
+    const res = await fetch('/api/agents/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req)
@@ -51,7 +60,7 @@ export const apiClient = {
     return res.json();
   },
   listAgents: async (): Promise<AgentResponse[]> => {
-    const res = await fetch('/api/agents');
+    const res = await fetch('/api/agents/');
     if (!res.ok) throw new Error('Failed to list agents');
     return res.json();
   },
@@ -87,12 +96,12 @@ export const apiClient = {
     return res.text();
   },
   getPolicy: async (id: string): Promise<{ policy_text: string }> => {
-    const res = await fetch(`/api/agents/${id}/policy`);
+    const res = await fetch(`/api/policies/${id}`);
     if (!res.ok) throw new Error('Failed to get policy');
     return res.json();
   },
   checkPolicy: async (id: string, req: { principal: string; action: string; resource: string }): Promise<{ decision: string; reason: string }> => {
-    const res = await fetch(`/api/agents/${id}/policy/check`, {
+    const res = await fetch(`/api/policies/${id}/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req)
@@ -105,9 +114,12 @@ export const apiClient = {
     if (params.agent_id) q.append('agent_id', params.agent_id);
     if (params.policy_decision && params.policy_decision !== 'All') q.append('policy_decision', params.policy_decision);
     if (params.limit) q.append('limit', params.limit.toString());
-    const res = await fetch(`/api/audit?${q.toString()}`);
+    const res = await fetch(`/api/audit/?${q.toString()}`);
     if (!res.ok) throw new Error('Failed to query audit');
     return res.json();
+  },
+  getAuditLogs: async (params: { agent_id?: string; policy_decision?: string; limit?: number }): Promise<{ records: AuditRecord[]; total: number }> => {
+    return apiClient.queryAudit(params);
   },
   getAuditStats: async (): Promise<AuditStats> => {
     const res = await fetch('/api/audit/stats');
