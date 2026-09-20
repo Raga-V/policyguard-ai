@@ -256,8 +256,3 @@ The platform runs entirely offline with local models and local policy evaluation
 | **Frontend** | React 18 + TypeScript + Tailwind CSS v3 |
 | **Orchestration** | Docker Compose |
 
----
-
-## License
-
-MIT

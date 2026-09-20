@@ -65,7 +65,7 @@ class PolicyEnforcer:
         payload = {
             "principal": f'AgentApp::Agent::"{self.agent_id}"',
             "action": cedar_action,
-            "resource": cedar_resource,
+            "resource": self.map_resource(tool_name, resource),
             "context": context
         }
         if entities:

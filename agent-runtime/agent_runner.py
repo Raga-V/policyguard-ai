@@ -71,15 +71,48 @@ async def call_llm(ollama_url: str, model: str, prompt: str) -> str:
         data = resp.json()
         return data.get("response", "")
 
+def _extract_json_object(text: str, start: int) -> Optional[str]:
+    """Extract one balanced JSON object, including nested objects and strings."""
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+
+    return None
+
+
 def parse_llm_response(response: str):
-    # check for ACTION
-    action_match = re.search(r'ACTION:\s*(\{.*?\})', response, re.DOTALL)
-    if action_match:
-        try:
-            action_json = json.loads(action_match.group(1))
-            return "action", action_json
-        except json.JSONDecodeError:
-            pass
+    action_marker = response.find("ACTION:")
+    if action_marker >= 0:
+        json_start = response.find("{", action_marker)
+        if json_start >= 0:
+            action_text = _extract_json_object(response, json_start)
+            if action_text:
+                try:
+                    action_json = json.loads(action_text)
+                    if isinstance(action_json, dict) and isinstance(action_json.get("tool"), str) and isinstance(action_json.get("args", {}), dict):
+                        return "action", action_json
+                except json.JSONDecodeError:
+                    pass
             
     # check for FINAL ANSWER
     final_match = re.search(r'FINAL ANSWER:\s*(.*)', response, re.DOTALL)
@@ -101,7 +134,6 @@ def get_resource_from_args(tool_name: str, args: dict) -> str:
 
 async def run_agent(session_id: str, user_prompt: str, max_steps: int):
     agent_id = os.environ.get("AGENT_ID", "default-agent")
-    agent_config = os.environ.get("AGENT_CONFIG", "{}")
     cedar_url = os.environ.get("CEDAR_AGENT_URL", "")
     ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
     ollama_model = os.environ.get("OLLAMA_MODEL", "llama3")
