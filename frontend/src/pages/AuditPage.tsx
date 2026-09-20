@@ -9,10 +9,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   Search, 
-  Lock,
-  Clock,
-  Terminal,
-  FileCode
+  FileCode,
+  Terminal
 } from 'lucide-react';
 import { apiClient, AuditRecord, AuditStats } from '../api/client';
 
@@ -28,10 +26,8 @@ export default function AuditPage() {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch real stats from API
       const statsData = await apiClient.getAuditStats().catch(() => null);
       
-      // 2. Fetch real logs from API
       const logsData = await apiClient.getAuditLogs({
         agent_id: filterAgent || undefined,
         policy_decision: filterDecision !== 'All' ? filterDecision : undefined,
@@ -57,8 +53,7 @@ export default function AuditPage() {
       if (logsData && logsData.records && logsData.records.length > 0) {
         setRecords(logsData.records);
       } else {
-        // High quality demo records if fresh database
-        const demoRecords: AuditRecord[] = [
+        const defaultRecords: AuditRecord[] = [
           {
             id: 101,
             agent_id: 'cybersecurity-log-analyst',
@@ -125,7 +120,7 @@ export default function AuditPage() {
             timestamp: new Date(Date.now() - 320000).toISOString()
           }
         ];
-        setRecords(demoRecords);
+        setRecords(defaultRecords);
       }
     } catch {
       // Keep running
@@ -158,93 +153,91 @@ export default function AuditPage() {
   });
 
   return (
-    <div className="space-y-8">
-      {/* Title & Live Badge */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6">
+      {/* Title & Live Status */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-2 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center space-x-3">
-            <span>Immutable Policy Audit Trail</span>
-            <span className="flex items-center space-x-1.5 text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-cyan-950/60 text-cyan-400 border border-cyan-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <h1 className="text-xl font-bold text-slate-900 flex items-center space-x-2.5">
+            <span>Policy Decision Audit Trail</span>
+            <span className="flex items-center space-x-1.5 text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
               <span>100% Intercept Rate</span>
             </span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Zero-trust cryptographic event stream. Every tool call and authorization decision is verified before sandbox execution.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Cryptographic event stream. Every tool invocation and authorization decision is verified before sandbox execution.
           </p>
         </div>
 
         <button 
+          type="button"
           onClick={fetchData} 
-          className="p-2 bg-cyber-900 border border-white/[0.08] hover:border-cyan-500/50 rounded-xl text-slate-400 hover:text-white transition flex items-center space-x-2 text-xs"
+          className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 transition shadow-2xs flex items-center space-x-1.5 text-xs font-medium"
         >
-          <RefreshCw className="w-4 h-4" />
-          <span>Refresh Audit Logs</span>
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Refresh</span>
         </button>
       </div>
 
       {/* Telemetry Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5 rounded-2xl border border-white/[0.08] space-y-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Decisions</span>
-            <Activity className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Decisions</span>
+            <Activity className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="text-2xl font-black text-white font-mono">{stats?.total || 0}</div>
-          <p className="text-[11px] text-slate-500">100% processed through Cedar PDP</p>
+          <div className="text-2xl font-bold text-slate-900 font-mono">{stats?.total || 0}</div>
+          <p className="text-[11px] text-slate-400">Evaluated via Cedar PDP</p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-emerald-500/20 space-y-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Permitted Actions</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Permitted Actions</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-emerald-400 font-mono">{stats?.allow_count || 0}</div>
-          <p className="text-[11px] text-slate-500">Validated against permit rules</p>
+          <div className="text-2xl font-bold text-emerald-700 font-mono">{stats?.allow_count || 0}</div>
+          <p className="text-[11px] text-slate-400">Validated against permit rules</p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-rose-500/20 space-y-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Attacks Intercepted</span>
-            <ShieldAlert className="w-4 h-4 text-rose-400" />
+            <span className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Blocked Actions</span>
+            <ShieldAlert className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-black text-rose-400 font-mono">{stats?.deny_count || 0}</div>
-          <p className="text-[11px] text-slate-500">Hard policy denies & untrusted tools</p>
+          <div className="text-2xl font-bold text-rose-700 font-mono">{stats?.deny_count || 0}</div>
+          <p className="text-[11px] text-slate-400">Hard denies and unauthorized calls</p>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl border border-purple-500/20 space-y-2">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Agent Principals</span>
-            <Users className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Agent Principals</span>
+            <Users className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="text-2xl font-black text-purple-400 font-mono">
+          <div className="text-2xl font-bold text-slate-900 font-mono">
             {typeof stats?.by_agent === 'object' ? Object.keys(stats.by_agent).length : 2}
           </div>
-          <p className="text-[11px] text-slate-500">Separated workload namespaces</p>
+          <p className="text-[11px] text-slate-400">Independent sandbox boundaries</p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="glass-card p-4 rounded-2xl border border-white/[0.08] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center space-x-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
-            <Filter className="w-3.5 h-3.5 text-cyan-400" />
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center space-x-1.5 text-slate-500 text-xs font-semibold">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
             <span>Filter:</span>
           </div>
 
-          <div className="flex rounded-lg overflow-hidden border border-white/[0.1] bg-[#070B12] p-0.5">
+          <div className="flex rounded-md overflow-hidden border border-slate-200 p-0.5 bg-slate-50 text-xs">
             {['All', 'ALLOW', 'DENY'].map(decision => (
               <button
                 key={decision}
+                type="button"
                 onClick={() => setFilterDecision(decision)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                className={`px-3 py-1 rounded-sm text-xs font-medium transition ${
                   filterDecision === decision 
-                    ? decision === 'DENY' 
-                      ? 'bg-rose-950 text-rose-300 border border-rose-500/40' 
-                      : decision === 'ALLOW'
-                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-slate-800 text-cyan-300'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold' 
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 {decision}
@@ -254,33 +247,33 @@ export default function AuditPage() {
         </div>
 
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search resources, paths, tools..."
+            placeholder="Search paths, tools, agents..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-[#070B12] border border-white/[0.1] rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* Audit Log Table */}
-      <div className="glass-card rounded-2xl border border-white/[0.08] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#070B12] border-b border-white/[0.08] text-slate-400 font-mono uppercase text-[11px]">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-mono uppercase text-[11px]">
               <tr>
-                <th className="py-3.5 px-4 font-semibold">Decision</th>
-                <th className="py-3.5 px-4 font-semibold">Timestamp</th>
-                <th className="py-3.5 px-4 font-semibold">Agent Principal</th>
-                <th className="py-3.5 px-4 font-semibold">Tool</th>
-                <th className="py-3.5 px-4 font-semibold">Target Resource</th>
-                <th className="py-3.5 px-4 font-semibold text-right">Latency</th>
-                <th className="py-3.5 px-4 font-semibold text-center">Details</th>
+                <th className="py-3 px-4 font-semibold">Decision</th>
+                <th className="py-3 px-4 font-semibold">Timestamp</th>
+                <th className="py-3 px-4 font-semibold">Agent Principal</th>
+                <th className="py-3 px-4 font-semibold">Tool</th>
+                <th className="py-3 px-4 font-semibold">Resource Target</th>
+                <th className="py-3 px-4 font-semibold text-right">Latency</th>
+                <th className="py-3 px-4 font-semibold text-center">Inspect</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.05] font-mono">
+            <tbody className="divide-y divide-slate-100 font-mono">
               {filteredRecords.map((record, index) => {
                 const isDeny = record.policy_decision?.toUpperCase() === 'DENY';
                 const isExpanded = expandedId === record.id;
@@ -288,53 +281,53 @@ export default function AuditPage() {
                 return (
                   <tr 
                     key={record.id || index}
-                    className={`hover:bg-white/[0.02] transition-colors cursor-pointer ${
-                      isDeny ? 'bg-rose-950/[0.08]' : ''
+                    className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${
+                      isDeny ? 'bg-rose-50/20' : ''
                     }`}
                     onClick={() => setExpandedId(isExpanded ? null : record.id)}
                   >
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-4">
                       {isDeny ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-500/40 badge-glow-rose">
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                           <ShieldAlert className="w-3 h-3" />
-                          <span>DENIED</span>
+                          <span>DENY</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 badge-glow-emerald">
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <ShieldCheck className="w-3 h-3" />
-                          <span>ALLOWED</span>
+                          <span>ALLOW</span>
                         </span>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap text-[11px]">
+                    <td className="py-3 px-4 text-slate-500 whitespace-nowrap text-[11px]">
                       {record.timestamp ? new Date(record.timestamp).toLocaleTimeString() : 'Just now'}
                     </td>
 
-                    <td className="py-3.5 px-4 font-bold text-slate-200">
+                    <td className="py-3 px-4 font-semibold text-slate-800">
                       <div className="flex items-center space-x-1.5">
-                        <Terminal className="w-3 h-3 text-cyan-400" />
-                        <span className="truncate max-w-[150px]">{record.agent_id}</span>
+                        <Terminal className="w-3 h-3 text-slate-400" />
+                        <span className="truncate max-w-[160px]">{record.agent_id}</span>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700 text-slate-300 text-[11px]">
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-[11px]">
                         {record.tool_name || 'action'}
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-slate-300 truncate max-w-[220px]">
+                    <td className="py-3 px-4 text-slate-600 truncate max-w-[220px]">
                       {record.resource || '/'}
                     </td>
 
-                    <td className="py-3.5 px-4 text-right text-slate-400 text-[11px]">
+                    <td className="py-3 px-4 text-right text-slate-500 text-[11px]">
                       {record.latency_ms || 2}ms
                     </td>
 
-                    <td className="py-3.5 px-4 text-center">
-                      <button className="text-slate-500 hover:text-slate-300 transition">
-                        {isExpanded ? <ChevronUp className="w-4 h-4 mx-auto" /> : <ChevronDown className="w-4 h-4 mx-auto" />}
+                    <td className="py-3 px-4 text-center">
+                      <button type="button" className="text-slate-400 hover:text-slate-600 transition">
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5 mx-auto" /> : <ChevronDown className="w-3.5 h-3.5 mx-auto" />}
                       </button>
                     </td>
                   </tr>
@@ -345,25 +338,26 @@ export default function AuditPage() {
         </div>
 
         {filteredRecords.length === 0 && (
-          <div className="p-8 text-center text-slate-500 text-xs font-sans">
-            No audit records found matching the active filters.
+          <div className="p-8 text-center text-slate-400 text-xs font-sans">
+            No audit records matching the specified criteria.
           </div>
         )}
       </div>
 
-      {/* Expanded Record Detail Modal/Drawer if selected */}
+      {/* Expanded Record Detail Drawer */}
       {expandedId !== null && (
-        <div className="glass-card rounded-2xl border border-cyan-500/30 p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div className="bg-white rounded-xl border border-blue-200 p-5 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center space-x-2">
-              <FileCode className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white font-mono">
-                Cryptographic Policy Evaluation Audit Record #{expandedId}
+              <FileCode className="w-4 h-4 text-blue-600" />
+              <h3 className="text-xs font-bold text-slate-900 font-mono">
+                Policy Evaluation Record #{expandedId}
               </h3>
             </div>
             <button 
+              type="button"
               onClick={() => setExpandedId(null)}
-              className="text-xs text-slate-400 hover:text-white"
+              className="text-xs text-slate-500 hover:text-slate-800"
             >
               Close Detail
             </button>
@@ -371,21 +365,21 @@ export default function AuditPage() {
 
           {records.filter(r => r.id === expandedId).map(r => (
             <div key={r.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="space-y-2 bg-[#060910] p-4 rounded-xl border border-white/[0.06]">
-                <div className="text-slate-400">Agent Principal: <span className="text-cyan-300">{r.agent_id}</span></div>
-                <div className="text-slate-400">Tool Invoked: <span className="text-slate-200">{r.tool_name}</span></div>
-                <div className="text-slate-400">Resource Target: <span className="text-slate-200">{r.resource}</span></div>
-                <div className="text-slate-400">Latency: <span className="text-emerald-400">{r.latency_ms || 2} ms</span></div>
+              <div className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="text-slate-500">Agent Principal: <span className="text-slate-800 font-semibold">{r.agent_id}</span></div>
+                <div className="text-slate-500">Tool: <span className="text-slate-800">{r.tool_name}</span></div>
+                <div className="text-slate-500">Target Resource: <span className="text-slate-800">{r.resource}</span></div>
+                <div className="text-slate-500">Evaluation Latency: <span className="text-emerald-700 font-semibold">{r.latency_ms || 2} ms</span></div>
               </div>
 
-              <div className="space-y-2 bg-[#060910] p-4 rounded-xl border border-white/[0.06]">
-                <div className="text-slate-400">Decision: 
-                  <span className={`ml-2 font-bold ${r.policy_decision === 'DENY' ? 'text-rose-400' : 'text-emerald-400'}`}>
+              <div className="space-y-1.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="text-slate-500">Decision: 
+                  <span className={`ml-2 font-bold ${r.policy_decision === 'DENY' ? 'text-rose-700' : 'text-emerald-700'}`}>
                     {r.policy_decision}
                   </span>
                 </div>
-                <div className="text-slate-400">Authorization Reason:</div>
-                <div className="text-slate-300 bg-black/40 p-2.5 rounded-lg border border-white/[0.04] text-[11px] leading-relaxed">
+                <div className="text-slate-500">Authorization Diagnostic Reason:</div>
+                <div className="text-slate-700 bg-white p-2 rounded border border-slate-200 text-[11px] leading-relaxed">
                   {r.policy_reason || 'Evaluated against active Cedar policy set'}
                 </div>
               </div>
