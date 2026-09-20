@@ -63,7 +63,7 @@ export default function BuilderPage({ onDeploy }: BuilderPageProps) {
       <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-700 bg-gray-800/50">
           <h2 className="text-lg font-semibold flex items-center space-x-2">
-            <HammerIcon />
+            <Shield className="w-5 h-5 text-amber-400" />
             <span>Agent Definition</span>
           </h2>
         </div>
