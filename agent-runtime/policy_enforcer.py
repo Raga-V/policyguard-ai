@@ -36,14 +36,40 @@ class PolicyEnforcer:
         if not cedar_action:
             return False, f"Unknown tool: {tool_name}"
             
-        cedar_resource = self.map_resource(tool_name, resource)
-        
+        entities = []
+        if tool_name in ["read_file", "write_file", "list_dir"]:
+            entities.append({
+                "uid": {"type": "AgentApp::File", "id": resource},
+                "attrs": {"path": resource, "classification": "internal", "readOnly": tool_name == "read_file"},
+                "parents": []
+            })
+        elif tool_name in ["http_get", "http_post"]:
+            entities.append({
+                "uid": {"type": "AgentApp::ApiEndpoint", "id": resource},
+                "attrs": {"url": resource, "environment": "internal", "rateLimit": 100, "requiresMFA": False},
+                "parents": []
+            })
+        elif tool_name == "sql_query":
+            entities.append({
+                "uid": {"type": "AgentApp::Database", "id": resource},
+                "attrs": {"name": resource, "environment": "internal", "pii": False, "compliance": []},
+                "parents": []
+            })
+        elif tool_name == "run_command":
+            entities.append({
+                "uid": {"type": "AgentApp::Command", "id": resource},
+                "attrs": {"executable": resource, "isRestricted": False},
+                "parents": []
+            })
+
         payload = {
             "principal": f'AgentApp::Agent::"{self.agent_id}"',
             "action": cedar_action,
             "resource": cedar_resource,
             "context": context
         }
+        if entities:
+            payload["entities"] = entities
         
         if not self.cedar_agent_url:
             return False, "cedar-agent URL not configured"

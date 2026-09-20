@@ -25,16 +25,51 @@ async def get_policy(agent_id: str):
 
 @router.post("/{agent_id}/check")
 async def check_policy(agent_id: str, request: PolicyCheckRequest):
+    # Synthesize contextual entity attributes so Cedar ABAC when clauses evaluate properly
+    entities = []
+    if "AgentApp::File" in request.resource:
+        res_id = request.resource.replace('AgentApp::File::"', '').rstrip('"')
+        entities.append({
+            "uid": {"type": "AgentApp::File", "id": res_id},
+            "attrs": {"path": res_id, "classification": "internal", "readOnly": False},
+            "parents": []
+        })
+    elif "AgentApp::ApiEndpoint" in request.resource:
+        res_id = request.resource.replace('AgentApp::ApiEndpoint::"', '').rstrip('"')
+        entities.append({
+            "uid": {"type": "AgentApp::ApiEndpoint", "id": res_id},
+            "attrs": {"url": res_id, "environment": "internal", "rateLimit": 100, "requiresMFA": False},
+            "parents": []
+        })
+    elif "AgentApp::Database" in request.resource:
+        res_id = request.resource.replace('AgentApp::Database::"', '').rstrip('"')
+        entities.append({
+            "uid": {"type": "AgentApp::Database", "id": res_id},
+            "attrs": {"name": res_id, "environment": "internal", "pii": False, "compliance": []},
+            "parents": []
+        })
+    elif "AgentApp::Command" in request.resource:
+        res_id = request.resource.replace('AgentApp::Command::"', '').rstrip('"')
+        entities.append({
+            "uid": {"type": "AgentApp::Command", "id": res_id},
+            "attrs": {"executable": res_id, "isRestricted": False},
+            "parents": []
+        })
+
+    payload = {
+        "principal": request.principal,
+        "action": request.action,
+        "resource": request.resource,
+        "context": request.context
+    }
+    if entities:
+        payload["entities"] = entities
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{CEDAR_AGENT_URL}/v1/is_authorized",
-                json={
-                    "principal": request.principal,
-                    "action": request.action,
-                    "resource": request.resource,
-                    "context": request.context
-                }
+                json=payload
             )
             response.raise_for_status()
             data = response.json()

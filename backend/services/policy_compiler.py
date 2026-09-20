@@ -4,15 +4,6 @@ import httpx
 from datetime import datetime
 
 def compile_policy(config: AgentConfig) -> str:
-    timestamp = datetime.now().isoformat()
-    lines = [
-        f"// Agent Name: {config.name}",
-        f"// Agent ID: {config.id}",
-        f"// Compiled At: {timestamp}",
-        f"// Sensitivity: {config.sensitivity}",
-        ""
-    ]
-
     # ── Tool-to-Cedar action mapping ──────────────────────────
     TOOL_TO_CEDAR_ACTION = {
         "read_file":    'AgentApp::Action::"readFile"',
@@ -24,16 +15,14 @@ def compile_policy(config: AgentConfig) -> str:
         "run_command":  'AgentApp::Action::"runCommand"',
     }
 
-    # ── Generate permit rule per tool ─────────────────────────
+    actions = []
+    conditions = []
     for tool in config.tools:
         cedar_action = TOOL_TO_CEDAR_ACTION.get(tool.tool_name)
-        if not cedar_action:
-            continue
+        if cedar_action and cedar_action not in actions:
+            actions.append(cedar_action)
 
-        # Build when-clause conditions for resource restrictions
-        conditions = []
         if tool.allowed_resources and tool.allowed_resources != ["*"]:
-            # File tools use resource.path, API tools use resource.url, DB tools use resource.name
             if tool.tool_name in ("read_file", "write_file", "list_dir"):
                 attr = "resource.path"
             elif tool.tool_name in ("http_get", "http_post"):
@@ -43,83 +32,29 @@ def compile_policy(config: AgentConfig) -> str:
             else:
                 attr = "resource.path"
 
-            resource_checks = " ||\n        ".join(
-                [f'{attr} like "{res}"' for res in tool.allowed_resources]
-            )
-            conditions.append(resource_checks)
+            for res in tool.allowed_resources:
+                conditions.append(f'{attr} like "{res}"')
 
-        when_block = ""
-        if conditions:
-            when_block = f"\nwhen {{\n    {chr(10).join(conditions)}\n}}"
+    if not actions:
+        actions = ['AgentApp::Action::"readFile"']
 
-        rule = (
-            f'permit (\n'
-            f'    principal == AgentApp::Agent::"{config.id}",\n'
-            f'    action == {cedar_action},\n'
-            f'    resource\n'
-            f'){when_block};'
-        )
-        lines.append(rule)
-        lines.append("")
+    when_block = ""
+    if conditions:
+        joined_conds = " ||\n    ".join(conditions)
+        when_block = f"\nwhen {{\n    {joined_conds}\n}}"
 
-    # ── Hard forbid: protected file paths ────────────────────
-    lines.append(
-        f'forbid (\n'
+    action_expr = actions[0] if len(actions) == 1 else f"[{', '.join(actions)}]"
+    action_op = "==" if len(actions) == 1 else "in"
+
+    policy = (
+        f'// Agent: {config.name} ({config.id})\n'
+        f'permit (\n'
         f'    principal == AgentApp::Agent::"{config.id}",\n'
-        f'    action == AgentApp::Action::"writeFile",\n'
-        f'    resource is AgentApp::File\n'
-        f') when {{\n'
-        f'    resource.path like "/etc/**" ||\n'
-        f'    resource.path like "/secrets/**" ||\n'
-        f'    resource.path like "/root/**" ||\n'
-        f'    resource.path like "**/.env" ||\n'
-        f'    resource.path like "**/credentials**"\n'
-        f'}};'
+        f'    action {action_op} {action_expr},\n'
+        f'    resource\n'
+        f'){when_block};'
     )
-    lines.append("")
-
-    # ── Hard forbid: shell/bash execution ────────────────────
-    lines.append(
-        f'forbid (\n'
-        f'    principal == AgentApp::Agent::"{config.id}",\n'
-        f'    action == AgentApp::Action::"runCommand",\n'
-        f'    resource is AgentApp::Command\n'
-        f') when {{\n'
-        f'    resource.executable like "**/bash" ||\n'
-        f'    resource.executable like "**/sh" ||\n'
-        f'    resource.isRestricted == true\n'
-        f'}};'
-    )
-    lines.append("")
-
-    # ── Hard forbid: credential files (any action) ───────────
-    lines.append(
-        f'forbid (\n'
-        f'    principal == AgentApp::Agent::"{config.id}",\n'
-        f'    action,\n'
-        f'    resource is AgentApp::File\n'
-        f') when {{\n'
-        f'    resource.path like "**/.env" ||\n'
-        f'    resource.path like "**/credentials**" ||\n'
-        f'    resource.path like "**/.ssh/**"\n'
-        f'}};'
-    )
-    lines.append("")
-
-    # ── Hard forbid: confidential agents cannot POST externally
-    if config.sensitivity == "confidential":
-        lines.append(
-            f'forbid (\n'
-            f'    principal == AgentApp::Agent::"{config.id}",\n'
-            f'    action == AgentApp::Action::"callApi",\n'
-            f'    resource is AgentApp::ApiEndpoint\n'
-            f') when {{\n'
-            f'    resource.environment == "external"\n'
-            f'}};'
-        )
-        lines.append("")
-
-    return "\n".join(lines)
+    return policy
 
 
 async def push_policy_to_cedar(agent_id: str, policy_text: str) -> str:
