@@ -5,7 +5,13 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
-client = docker.from_env()
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = docker.from_env()
+    return _client
 
 async def deploy_agent(config: AgentConfig, policy_text: str) -> str:
     env_vars = {
@@ -20,12 +26,13 @@ async def deploy_agent(config: AgentConfig, policy_text: str) -> str:
     
     try:
         # Create docker network if not exists
+        cli = get_client()
         try:
-            client.networks.get(SANDBOX_NETWORK)
+            cli.networks.get(SANDBOX_NETWORK)
         except docker.errors.NotFound:
-            client.networks.create(SANDBOX_NETWORK, driver="bridge")
+            cli.networks.create(SANDBOX_NETWORK, driver="bridge")
 
-        container = client.containers.run(
+        container = cli.containers.run(
             image=SANDBOX_IMAGE,
             name=container_name,
             environment=env_vars,
@@ -42,7 +49,7 @@ async def deploy_agent(config: AgentConfig, policy_text: str) -> str:
 
 async def stop_agent(container_id: str) -> None:
     try:
-        container = client.containers.get(container_id)
+        container = get_client().containers.get(container_id)
         container.stop()
     except docker.errors.NotFound:
         pass
@@ -52,7 +59,7 @@ async def stop_agent(container_id: str) -> None:
 
 async def get_container_logs(container_id: str) -> str:
     try:
-        container = client.containers.get(container_id)
+        container = get_client().containers.get(container_id)
         return container.logs().decode('utf-8')
     except Exception as e:
         logger.error(f"Failed to get container logs: {e}")
@@ -60,7 +67,7 @@ async def get_container_logs(container_id: str) -> str:
 
 async def run_prompt_in_agent(container_id: str, session_id: str, prompt: str) -> str:
     try:
-        container = client.containers.get(container_id)
+        container = get_client().containers.get(container_id)
         exec_result = container.exec_run(
             cmd=["python", "agent_runner.py", "--session-id", session_id, "--prompt", prompt]
         )
