@@ -1,0 +1,182 @@
+version: "3.9"
+
+# ============================================================
+# Policy-Governed AI Agent Platform — Docker Compose
+# All services run locally. No internet access required at runtime.
+# ============================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # LOCAL LLM INFERENCE
+  # Serves open-weight models offline via Ollama REST API.
+  # CPU-only by default; uncomment `deploy` section for GPU.
+  # ──────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: policyguard-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_NUM_PARALLEL=2
+    networks:
+      - agent-net
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Uncomment for GPU acceleration:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ──────────────────────────────────────────────────────────
+  # CEDAR AUTHORIZATION SIDECAR
+  # Policy Decision Point — evaluates every tool call against
+  # Cedar policies. Fail-closed: if unreachable → DENY.
+  # ──────────────────────────────────────────────────────────
+  cedar-agent:
+    image: permitio/cedar-agent:latest
+    container_name: policyguard-cedar
+    restart: unless-stopped
+    ports:
+      - "8180:8180"
+    environment:
+      - CEDAR_AGENT_PORT=8180
+      - CEDAR_AGENT_LOG_LEVEL=info
+    volumes:
+      - ./cedar-agent/policies:/app/policies:ro
+      - ./cedar-agent/schema.cedarschema:/app/schema.json:ro
+      - ./cedar-agent/entities.json:/app/entities.json:ro
+    networks:
+      - agent-net
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8180/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ──────────────────────────────────────────────────────────
+  # CONTROL PLANE (FastAPI Backend)
+  # Central hub: agent builder, policy compiler, orchestrator,
+  # audit logging. Serves REST API for the UI.
+  # ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: policyguard-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      - CEDAR_AGENT_URL=http://cedar-agent:8180
+      - DATABASE_URL=/data/audit.db
+      - SANDBOX_IMAGE=policyguard-agent-runtime:latest
+      - SANDBOX_NETWORK=agent_agent-net
+      - SECRET_KEY=${SECRET_KEY:-changeme-set-in-dotenv}
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - audit_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker for sandbox mgmt
+    networks:
+      - agent-net
+    depends_on:
+      ollama:
+        condition: service_healthy
+      cedar-agent:
+        condition: service_healthy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ──────────────────────────────────────────────────────────
+  # REACT FRONTEND
+  # Served by Nginx (static build). Proxies /api/* to backend.
+  # ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: policyguard-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - agent-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging: *default-logging
+
+  # ──────────────────────────────────────────────────────────
+  # MODEL PULL (one-shot init container)
+  # Downloads default models on first run.
+  # ──────────────────────────────────────────────────────────
+  model-init:
+    image: ollama/ollama:latest
+    container_name: policyguard-model-init
+    restart: "no"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: >
+      sh -c "
+        echo '⏳ Waiting for Ollama to be ready...' &&
+        until curl -sf http://ollama:11434/api/version; do sleep 2; done &&
+        echo '📥 Pulling ${OLLAMA_MODEL:-qwen2.5:7b}...' &&
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} &&
+        echo '✅ Model ready.'
+      "
+    networks:
+      - agent-net
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+# ──────────────────────────────────────────────────────────
+# NETWORKS
+# agent-net: isolated internal network for all services.
+# Agent sandboxes are attached to this network so they can
+# reach cedar-agent and backend, but NOT the internet.
+# ──────────────────────────────────────────────────────────
+networks:
+  agent-net:
+    driver: bridge
+    internal: false   # Set to true for full air-gap (no internet to any service)
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ──────────────────────────────────────────────────────────
+# VOLUMES
+# ──────────────────────────────────────────────────────────
+volumes:
+  ollama_models:
+    driver: local
+  audit_data:
+    driver: local

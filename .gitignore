@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+venv/
+.venv/
+env/
+.env
+*.env
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Docker volumes / runtime data
+audit/
+audit.db
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Secrets — NEVER commit these
+.env
+*.pem
+*.key
+*.crt
+secrets/
+
+# Logs
+*.log
+logs/
+
+# Ollama model weights — too large for git
+ollama_models/

@@ -1,0 +1,17 @@
+[
+  {
+    "uid": { "type": "AgentApp::AgentGroup", "id": "read-only-agents" },
+    "attrs": { "groupName": "read-only-agents" },
+    "parents": []
+  },
+  {
+    "uid": { "type": "AgentApp::AgentGroup", "id": "trusted-agents" },
+    "attrs": { "groupName": "trusted-agents" },
+    "parents": []
+  },
+  {
+    "uid": { "type": "AgentApp::AgentGroup", "id": "analytics-agents" },
+    "attrs": { "groupName": "analytics-agents" },
+    "parents": []
+  }
+]

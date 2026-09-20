@@ -1,0 +1,173 @@
+// ============================================================
+// PolicyGuard AI — Cedar Entity Schema
+// Defines all entity types, action types, and their
+// relationships for AI agent authorization.
+// ============================================================
+{
+  "AgentApp": {
+    "entityTypes": {
+
+      // ── Agent entity (one per deployed AI agent) ──────────
+      "Agent": {
+        "memberOfTypes": ["AgentGroup"],
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "agentId":        { "type": "String" },
+            "trustLevel":     { "type": "Long" },
+            "sensitivity":    { "type": "String" },
+            "capabilities":   { "type": "Set", "element": { "type": "String" } },
+            "isVerified":     { "type": "Boolean" },
+            "ownerId":        { "type": "String" }
+          }
+        }
+      },
+
+      // ── Agent groupings (e.g. "read-only-agents") ─────────
+      "AgentGroup": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "groupName": { "type": "String" }
+          }
+        }
+      },
+
+      // ── File system resource ───────────────────────────────
+      "File": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "path":           { "type": "String" },
+            "classification": { "type": "String" },
+            "readOnly":       { "type": "Boolean" },
+            "extension":      { "type": "String", "required": false }
+          }
+        }
+      },
+
+      // ── HTTP API endpoint ──────────────────────────────────
+      "ApiEndpoint": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "url":          { "type": "String" },
+            "environment":  { "type": "String" },
+            "rateLimit":    { "type": "Long" },
+            "requiresMFA":  { "type": "Boolean" }
+          }
+        }
+      },
+
+      // ── Database resource ──────────────────────────────────
+      "Database": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name":        { "type": "String" },
+            "environment": { "type": "String" },
+            "pii":         { "type": "Boolean" },
+            "compliance":  { "type": "Set", "element": { "type": "String" } }
+          }
+        }
+      },
+
+      // ── Shell command resource ─────────────────────────────
+      "Command": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "executable": { "type": "String" },
+            "isRestricted": { "type": "Boolean" }
+          }
+        }
+      }
+    },
+
+    // ── Action definitions ───────────────────────────────────
+    "actions": {
+      "readFile": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["File"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "requestTime":  { "type": "String" },
+              "sessionId":    { "type": "String" }
+            }
+          }
+        }
+      },
+      "writeFile": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["File"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "requestTime":  { "type": "String" },
+              "sessionId":    { "type": "String" }
+            }
+          }
+        }
+      },
+      "listDir": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["File"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "requestTime": { "type": "String" },
+              "sessionId":   { "type": "String" }
+            }
+          }
+        }
+      },
+      "callApi": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["ApiEndpoint"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "method":         { "type": "String" },
+              "requestTime":    { "type": "String" },
+              "sessionId":      { "type": "String" },
+              "payloadSizeKB":  { "type": "Long", "required": false }
+            }
+          }
+        }
+      },
+      "queryDatabase": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["Database"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "queryType":   { "type": "String" },
+              "tableName":   { "type": "String", "required": false },
+              "requestTime": { "type": "String" },
+              "sessionId":   { "type": "String" }
+            }
+          }
+        }
+      },
+      "runCommand": {
+        "appliesTo": {
+          "principalTypes": ["Agent"],
+          "resourceTypes":  ["Command"],
+          "context": {
+            "type": "Record",
+            "attributes": {
+              "requestTime": { "type": "String" },
+              "sessionId":   { "type": "String" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
