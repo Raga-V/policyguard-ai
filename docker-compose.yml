@@ -31,11 +31,11 @@ services:
       - agent-net
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
-      interval: 10s
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 5s
     # Uncomment for GPU acceleration:
     # deploy:
     #   resources:
@@ -67,11 +67,11 @@ services:
       - agent-net
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8180/health"]
+      test: ["CMD-SHELL", "/bin/bash -c 'echo > /dev/tcp/127.0.0.1/8180' || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 5s
 
   # ──────────────────────────────────────────────────────────
   # CONTROL PLANE (FastAPI Backend)
@@ -107,11 +107,11 @@ services:
         condition: service_healthy
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 5s
 
   # ──────────────────────────────────────────────────────────
   # REACT FRONTEND
@@ -145,7 +145,7 @@ services:
     entrypoint: >
       sh -c "
         echo '⏳ Waiting for Ollama to be ready...' &&
-        until curl -sf http://ollama:11434/api/version; do sleep 2; done &&
+        until ollama list > /dev/null 2>&1; do sleep 2; done &&
         echo '📥 Pulling ${OLLAMA_MODEL:-qwen2.5:7b}...' &&
         ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} &&
         echo '✅ Model ready.'
