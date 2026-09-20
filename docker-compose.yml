@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ============================================================
 # Policy-Governed AI Agent Platform — Docker Compose
 # All services run locally. No internet access required at runtime.
