@@ -54,3 +54,23 @@ async def audit_stats():
     
     await db.close()
     return stats
+
+@router.post("/ingest")
+async def ingest_audit(payload: dict):
+    from services.audit_service import log_event
+    details = payload.get("details", {})
+    record = AuditRecord(
+        agent_id=payload.get("agent_id", "unknown"),
+        session_id=payload.get("session_id", "unknown"),
+        event_type=payload.get("event_type", "INFO"),
+        tool_name=details.get("tool_name"),
+        resource=details.get("resource"),
+        action=details.get("action"),
+        policy_decision=details.get("policy_decision"),
+        policy_reason=details.get("reason"),
+        input_data=str(details.get("args") or details.get("prompt") or ""),
+        output_data=str(details.get("result") or ""),
+        latency_ms=details.get("latency_ms", 0)
+    )
+    await log_event(record)
+    return {"status": "ok"}

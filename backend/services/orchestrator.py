@@ -40,6 +40,7 @@ async def deploy_agent(config: AgentConfig, policy_text: str) -> str:
             detach=True,
             remove=False,
             read_only=True,
+            tmpfs={'/tmp': 'size=64M,mode=1777', '/data': 'size=128M,mode=1777'},
             command="tail -f /dev/null" # Keep alive
         )
         return container.id
